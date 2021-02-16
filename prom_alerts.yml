@@ -1,0 +1,150 @@
+groups:
+ - name: up_alert
+   rules:
+   - alert: TargetDown
+     expr:  up == 0
+     for: 3m
+     labels:
+       severity: critical
+     annotations:
+       summary: "Instance {{ $labels.instance }} - is down"
+       description: "{{ $labels.instance }} (measured by {{ $labels.job }}) is down"
+ - name: low_storage
+   rules:
+#   - alert: low_storage
+#     expr:  count by (instance) (max without(mountpoint) ((sum by(instance,mountpoint,job)(node_filesystem_size_bytes{job="elastic_dc_node_exporter"}) - sum by(instance,mountpoint,job)(node_filesystem_avail_bytes{job="elastic_dc_node_exporter"})) / sum by(instance,mountpoint,job)(node_filesystem_size_bytes{job="elastic_dc_node_exporter"}) * 100) > 70) > 0
+#     for: 1m
+#     labels:
+#       severity: critical
+#     annotations:
+#       summary: Low disk space on DC ES {{ $labels.instance }}!
+#       description: Low disk space (<70%) on one or more machine {{ $labels.instance }}!
+   - alert: HostOutOfDiskSpace20
+     expr: (node_filesystem_avail_bytes{mountpoint != "/mnt"} * 100) / node_filesystem_size_bytes < 20
+     for: 5m
+     labels:
+       severity: warning
+     annotations:
+       summary: "Host out of disk space (instance {{ $labels.instance }})"
+       description: "Disk is almost full (< 20% left)\n  MountPoint = {{$labels.mountpoint}} VALUE = {{ $value }}"
+   - alert: HostOutOfDiskSpace
+     expr: (node_filesystem_avail_bytes{mountpoint != "/mnt"}  * 100) / node_filesystem_size_bytes < 10
+     for: 5m
+     labels:
+       severity: alert
+     annotations:
+       summary: "Host out of disk space (instance {{ $labels.instance }})"
+       description: "Disk is almost full (< 10% left)\n MountPoint = {{$labels.mountpoint}}  VALUE = {{ $value }}}"
+   - alert: elasticsearch_cluster_health_status_yellow
+     expr:  elasticsearch_cluster_health_status{color="yellow"}==1
+     for: 300s
+     labels:
+       severity: alert
+     annotations:
+       summary: Cluster Status Yellow on DC ES!!
+       description: not all primary and replica shards are allocated in elasticsearch cluster.
+   - alert: elasticsearch_cluster_health_status_red
+     expr:  elasticsearch_cluster_health_status{color="red"}==1
+     for: 300s
+     labels:
+       severity: alert
+     annotations:
+       summary: Cluster Status Red on DC ES!!
+       description: not all primary and replica shards are allocated in elasticsearch cluster.
+   - alert: pending message count
+     expr:  ems:queue:pendingMessageCount{instance="EMS-XXXX",job="XXXX-EMS",queue="Q.XXXX"} > 100
+     for: 5m
+     labels:
+       severity: critical
+     annotations:
+       summary: pending queues on Q.XXXX reached more than {{ $value }}
+       description: pending queues on Q.XXXX
+   - alert: HostOutOfMemory
+     expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100 < 10
+     for: 5m
+     labels:
+       severity: warning
+     annotations:
+       summary: "Host out of memory (instance {{ $labels.instance }})"
+       description: "Node memory is filling up (< 10% left)\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+   - alert: HostUnusualNetworkThroughputIn
+     expr: sum by (instance) (irate(node_network_receive_bytes_total[2m])) / 1024 / 1024 > 100
+     for: 5m
+     labels:
+       severity: warning
+     annotations:
+       summary: "Host unusual network throughput in (instance {{ $labels.instance }})"
+       description: "Host network interfaces are probably receiving too much data (> 100 MB/s)\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+   - alert: HostUnusualNetworkThroughputOut
+     expr: sum by (instance) (irate(node_network_transmit_bytes_total[2m])) / 1024 / 1024 > 100
+     for: 5m
+     labels:
+       severity: warning
+     annotations:
+       summary: "Host unusual network throughput out (instance {{ $labels.instance }})"
+       description: "Host network interfaces are probably sending too much data (> 100 MB/s)\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+   - alert: HostDiskWillFillIn4Hours
+     expr: predict_linear(node_filesystem_free_bytes[1h], 4 * 3600) < 0
+     for: 5m
+     labels:
+       severity: warning
+     annotations:
+       summary: "Host disk will fill in 4 hours (instance {{ $labels.instance }})"
+       description: "Disk will fill in 4 hours at current write rate\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+   - alert: HostUnusualDiskReadLatency
+     expr: rate(node_disk_read_time_seconds_total[1m]) / rate(node_disk_reads_completed_total[1m]) > 100
+     for: 5m
+     labels:
+       severity: warning
+     annotations:
+       summary: "Host unusual disk read latency (instance {{ $labels.instance }})"
+       description: "Disk latency is growing (read operations > 100ms)\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+   - alert: HostUnusualDiskWriteLatency
+     expr: rate(node_disk_write_time_seconds_total[1m]) / rate(node_disk_writes_completed_total[1m]) > 100
+     for: 5m
+     labels:
+       severity: warning
+     annotations:
+       summary: "Host unusual disk write latency (instance {{ $labels.instance }})"
+       description: "Disk latency is growing (write operations > 100ms)\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+   - alert: HostHighCpuLoad
+     expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+     for: 5m
+     labels:
+       severity: warning
+     annotations:
+       summary: "Host high CPU load (instance {{ $labels.instance }})"
+       description: "CPU load is > 80%\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+
+ - name: added by pipeline
+   rules:
+   - alert: HighErrorRate
+     expr: job:request_latency_seconds:mean5m{job="ha_exporter"} > 0.7
+     for: 10m
+     labels:
+       severity: page
+     annotations:
+       summary: High request latency
+       description: High request latency
+ 
+ - name: jenkins_alert
+   rules:
+   - alert: GrafanaDown
+     expr:  absent(grafana_alerting_active_alerts )
+     for: 1m
+     labels:
+       severity: critical
+     annotations:
+       summary: "Grafana 134 is down"
+       description: "Check Grafana is down"
+
+ - name: Haproxy_server_response_alert
+   rules:
+   - alert: Haproxy_frontend_sessions
+     expr: haproxy_frontend_current_sessions>1500
+     for: 1m
+     labels:
+       severity: critical
+     annotations:
+       summary: "Haproxy has exceeded 1500 session on job {{ $labels.job }}"
+       description: "Haproxy has exceeded 1500 session on job {{ $labels.job }} on instance {{ $labels.instance}}"
