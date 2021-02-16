@@ -1,0 +1,49 @@
+route:
+   receiver: slack_receiver
+   group_by: ['instance']
+   routes:
+   -  receiver: prov_slack_receiver       
+      match:
+       source: provisioning
+   -  receiver: slack_receiver
+      match:
+       severity: alert
+       
+   -  receiver: slack_receiver
+      match:
+       severity: critical
+      
+receivers:
+ - name: slack_receiver
+   slack_configs:
+   - send_resolved: true
+     username: 'Prometheus'
+     api_url: 'https://' 
+     channel: '#devops-alerts'
+     title: "{{ range .Alerts }}{{ .Annotations.summary }}\n{{ end }}"
+     text: "{{ range .Alerts }}{{ .Annotations.description }}\n{{ end }}"
+     http_config:
+      proxy_url: 'http://'
+   webhook_configs:
+   - send_resolved: true
+     url: http://
+ - name: devops_team_test
+   slack_configs:
+   - send_resolved: true
+     username: 'Prometheus'
+     api_url: 'https://hooks.slack.com/services/' 
+     channel: '#devops-alerts'
+     title: "{{ range .Alerts }}{{ .Annotations.summary }}\n{{ end }}"
+     text: "{{ range .Alerts }}{{ .Annotations.description }}\n{{ end }}"
+     http_config:
+      proxy_url: 'http://'
+ - name: prov_slack_receiver
+   slack_configs:
+   - send_resolved: true
+     username: 'Prometheus'
+     api_url: 'https://hooks.slack.com/services/' 
+     channel: '#alerts-prov'
+     title: "{{ range .Alerts }}{{ .Annotations.summary }}\n{{ end }}"
+     text: "{{ range .Alerts }}{{ .Annotations.description }}\n{{ end }}"
+     http_config:
+      proxy_url: 'http://'
