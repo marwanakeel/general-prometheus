@@ -1,0 +1,72 @@
+global:
+  scrape_interval:     15s # Set the scrape interval to every 15 seconds. Default is every 1 minute.
+  evaluation_interval: 15s # Evaluate rules every 15 seconds. The default is every 1 minute.
+  # scrape_timeout is set to the global default (10s).
+
+# Load rules once and periodically evaluate them according to the global 'evaluation_interval'.
+rule_files:
+   - "/var/prometheus/rules/*_rules.yml"
+   - "/var/prometheus/rules/*_alerts.yml"
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+  - static_configs:
+    - targets:
+       - 'alertmanager:9093'
+       
+# A scrape configuration containing exactly one endpoint to scrape:
+# Here it's Prometheus itself.
+scrape_configs:
+  # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
+ 
+######################################### job to monitor prometheus #################################### 
+  
+  - job_name: 'prometheus'
+
+    # metrics_path defaults to '/metrics'
+    # scheme defaults to 'http'.
+
+    static_configs:
+    - targets: ['localhost:9090']
+
+########################################## job to monitor Z pods ############################  
+  - job_name: 'kube-Z-pods'
+    scrape_interval: 20s
+    scrape_timeout:  10s
+    metrics_path: "/metrics/"
+    kubernetes_sd_configs:
+    - role: pod
+      namespaces:
+        names:
+          - bwc-tibco
+    relabel_configs:
+    - action: labelmap
+      regex: __meta_kubernetes_pod_label_(.+)
+    - source_labels: [__meta_kubernetes_pod_label_app]
+      regex: servicebalance
+      action: keep
+    - source_labels: [__meta_kubernetes_pod_name]
+      action: replace
+      target_label: kubernetes_pod_name
+    - source_labels: [__meta_kubernetes_pod_container_port_number]
+      action: keep
+      regex: 9095
+######################################### job to monitor X ##############################################   
+  - job_name: 'X-machines' 
+    scrape_interval: 60s
+    scrape_timeout: 15s
+    metrics_path: /metrics
+    static_configs: 
+      - targets: 
+         - '10.x.x.x:9100'
+######################################### job to monitor Y ##############################################   
+  - job_name: 'Y-haproxy' 
+    scrape_interval: 60s
+    scrape_timeout: 15s
+    static_configs: 
+      - targets: ['haproxy-Y.com.eg']
+########################################## job to monitor Grafana machine ############################  
+  - job_name: 'grafana_node_exporter'
+    static_configs:
+      - targets: ['10.x.x.x:9100']
